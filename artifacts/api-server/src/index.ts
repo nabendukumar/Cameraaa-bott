@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import "./lib/telegram"; // Initialize Telegram bot (polling)
 
 const rawPort = process.env["PORT"];
 
