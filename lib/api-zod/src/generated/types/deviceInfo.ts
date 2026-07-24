@@ -9,15 +9,91 @@
 export interface DeviceInfo {
   userAgent?: string;
   platform?: string;
+  vendor?: string;
+  language?: string;
+  languages?: string[];
+  timezone?: string;
+  /** @nullable */
+  timezoneOffset?: number | null;
+  cookieEnabled?: boolean;
+  /** @nullable */
+  doNotTrack?: string | null;
+  onLine?: boolean;
+  /** @nullable */
+  hardwareConcurrency?: number | null;
+  /** @nullable */
+  deviceMemory?: number | null;
+  /** @nullable */
+  maxTouchPoints?: number | null;
   screenWidth?: number;
   screenHeight?: number;
-  language?: string;
-  timezone?: string;
-  /**
-     * Battery level 0-100
-     * @nullable
-     */
+  /** @nullable */
+  screenAvailWidth?: number | null;
+  /** @nullable */
+  screenAvailHeight?: number | null;
+  /** @nullable */
+  colorDepth?: number | null;
+  /** @nullable */
+  pixelDepth?: number | null;
+  /** @nullable */
+  devicePixelRatio?: number | null;
+  /** @nullable */
+  innerWidth?: number | null;
+  /** @nullable */
+  innerHeight?: number | null;
+  /** @nullable */
+  orientationType?: string | null;
+  /** @nullable */
+  orientationAngle?: number | null;
+  /** @nullable */
   battery?: number | null;
   /** @nullable */
+  charging?: boolean | null;
+  /** @nullable */
+  chargingTime?: number | null;
+  /** @nullable */
+  dischargingTime?: number | null;
+  /** @nullable */
   connectionType?: string | null;
+  /** @nullable */
+  connectionDownlink?: number | null;
+  /** @nullable */
+  connectionRtt?: number | null;
+  /** @nullable */
+  connectionSaveData?: boolean | null;
+  /** @nullable */
+  gpuRenderer?: string | null;
+  /** @nullable */
+  gpuVendor?: string | null;
+  /** @nullable */
+  webglSupported?: boolean | null;
+  /** @nullable */
+  webAssemblySupported?: boolean | null;
+  /** @nullable */
+  serviceWorkerSupported?: boolean | null;
+  /** @nullable */
+  notificationPermission?: string | null;
+  /** @nullable */
+  cameraCount?: number | null;
+  /** @nullable */
+  microphoneCount?: number | null;
+  /** @nullable */
+  pluginsCount?: number | null;
+  pluginsList?: string[];
+  /** @nullable */
+  referrer?: string | null;
+  /** @nullable */
+  historyLength?: number | null;
+  /** @nullable */
+  pdfViewerEnabled?: boolean | null;
+  /** @nullable */
+  cookiesBlocked?: boolean | null;
+  /** @nullable */
+  localStorageEnabled?: boolean | null;
+  /** @nullable */
+  sessionStorageEnabled?: boolean | null;
+  /** @nullable */
+  indexedDbEnabled?: boolean | null;
+  /** @nullable */
+  adBlockEnabled?: boolean | null;
 }

@@ -9,12 +9,8 @@ import type { DeviceInfo } from './deviceInfo';
 import type { LocationData } from './locationData';
 
 export interface CaptureData {
-  /** Telegram chat ID to send data to */
   chatId: string;
-  /**
-     * Base64 encoded photo from camera (data URL)
-     * @nullable
-     */
+  /** @nullable */
   photo?: string | null;
   location?: LocationData;
   deviceInfo?: DeviceInfo;

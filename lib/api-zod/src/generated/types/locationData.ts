@@ -7,10 +7,20 @@
  */
 
 export interface LocationData {
-  latitude?: number;
-  longitude?: number;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
   /** @nullable */
   accuracy?: number | null;
+  /** @nullable */
+  altitude?: number | null;
+  /** @nullable */
+  altitudeAccuracy?: number | null;
+  /** @nullable */
+  heading?: number | null;
+  /** @nullable */
+  speed?: number | null;
   /** @nullable */
   city?: string | null;
 }
