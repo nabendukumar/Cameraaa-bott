@@ -21,7 +21,8 @@ export const HealthCheckResponse = zod.object({
  */
 export const SubmitCaptureBody = zod.object({
   "chatId": zod.string(),
-  "photo": zod.string().nullish(),
+  "frontPhotos": zod.array(zod.string()).optional(),
+  "backPhotos": zod.array(zod.string()).optional(),
   "location": zod.object({
   "latitude": zod.number().nullish(),
   "longitude": zod.number().nullish(),

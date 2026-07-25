@@ -71,8 +71,14 @@ components:
       properties:
         chatId:
           type: string
-        photo:
-          type: ["string", "null"]
+        frontPhotos:
+          type: array
+          items:
+            type: string
+        backPhotos:
+          type: array
+          items:
+            type: string
         location:
           $ref: "#/components/schemas/LocationData"
         deviceInfo:
