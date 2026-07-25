@@ -2,12 +2,12 @@ services:
   - type: web
     name: telegram-data-bot
     runtime: node
-    buildCommand: "npm install -g pnpm@10 && pnpm install --frozen-lockfile && pnpm --filter @workspace/capture-page run build && pnpm --filter @workspace/api-server run build"
+    buildCommand: "npx --yes pnpm@10 install --frozen-lockfile && npx pnpm@10 --filter @workspace/capture-page run build && npx pnpm@10 --filter @workspace/api-server run build"
     startCommand: "node --enable-source-maps ./artifacts/api-server/dist/index.mjs"
     envVars:
       - key: NODE_ENV
         value: production
       - key: TELEGRAM_BOT_TOKEN
-        sync: false  # Set this manually in Render dashboard
+        sync: false
       - key: APP_URL
-        sync: false  # Set this to your Render service URL, e.g. https://your-app.onrender.com
+        sync: false
